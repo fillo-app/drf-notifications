@@ -412,18 +412,21 @@ def notify_handler(verb, **kwargs):
             logger.exception("WebSocket delivery failed for notification %s", newnotify.pk)
 
         # GCM
-        device = GCMDevice.objects.filter(user_id=newnotify.recipient.id).first()
-        if device:
+        devices = GCMDevice.objects.filter(user_id=newnotify.recipient.id, active=True)
+        if devices.exists():
+            # FCM data values must be strings
             for key in newnotify_data.keys():
-                newnotify_data[key] = str(newnotify_data[key])
+                value = newnotify_data[key]
+                newnotify_data[key] = "" if value is None else str(value)
 
             try:
-                device.send_message(
+                devices.send_message(
                     messaging.Message(
                         notification=messaging.Notification(
                             title=newnotify.verb,
                             body=newnotify.description
                         ),
+                        data=newnotify_data,
                         apns=messaging.APNSConfig(
                             payload=messaging.APNSPayload(
                                 aps=messaging.Aps(
